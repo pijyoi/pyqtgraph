@@ -63,7 +63,7 @@ conditionalExamples = {
         reason="Example requires user interaction"
     ),
     "RemoteSpeedTest.py": exceptionCondition(
-        False,
+        True,
         reason="Test is being problematic on CI machines"
     ),
     'GLVolumeItem.py': exceptionCondition(
