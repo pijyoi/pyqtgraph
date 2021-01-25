@@ -67,7 +67,7 @@ conditionalExamples = {
         reason="Test is being problematic on CI machines"
     ),
     "RemoteGraphicsView.py": exceptionCondition(
-        False,
+        True,
         reason="Test is being problematic on CI machines"
     ),
     "ProgressDialog.py": exceptionCondition(
