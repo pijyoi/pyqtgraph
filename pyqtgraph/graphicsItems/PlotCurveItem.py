@@ -582,7 +582,7 @@ class PlotCurveItem(GraphicsObject):
             x2[:] = x[:, np.newaxis]
         else:
             raise ValueError("Unsupported stepMode %s" % stepMode)
-        if baseline is None:
+        if True or baseline is None:
             x = x2.reshape(x2.size)[1:-1]
             y2 = np.empty((len(y),2), dtype=y.dtype)
             y2[:] = y[:,np.newaxis]
@@ -699,9 +699,9 @@ class PlotCurveItem(GraphicsObject):
             return segments
 
         baseline = self.opts['fillLevel']
-        x, y = self.getData()
-        lx, rx = x[[0, -1]]
-        ly, ry = y[[0, -1]]
+        segs = self._getLineSegments()
+        lx, ly = segs[0].x1(), segs[0].y1()
+        rx, ry = segs[-1].x2(), segs[-1].y2()
 
         if ry != baseline:
             segments.append(QtCore.QLineF(rx, ry, rx, baseline))
@@ -721,9 +721,10 @@ class PlotCurveItem(GraphicsObject):
             return path
 
         baseline = self.opts['fillLevel']
-        x, y = self.getData()
-        lx, rx = x[[0, -1]]
-        ly, ry = y[[0, -1]]
+        lp = path.elementAt(0)
+        rp = path.elementAt(path.elementCount()-1)
+        lx, ly = lp.x, lp.y
+        rx, ry = rp.x, rp.y
 
         if ry != baseline:
             path.lineTo(rx, baseline)
