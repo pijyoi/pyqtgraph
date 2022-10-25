@@ -400,3 +400,46 @@ def test_ndarray_from_qimage():
         qimg.fill(0)
         arr = pg.functions.ndarray_from_qimage(qimg)
         assert arr.shape == (h, w)
+
+
+def test_compact_nonfinite():
+    compact = lambda x : pg.functions._compact_nonfinite(x, x, np.isfinite(x))[0]
+
+    # verify that empty array works
+    assert len(compact(np.array([]))) == 0
+
+    # verify that single element non-finite array works
+    assert len(compact(np.array([np.nan]))) == 0
+
+    # verify that single element finite array works
+    input = np.array([2])
+    output = compact(input)
+    assert np.all(input == output)
+
+    # verify that all finite works
+    input = np.array([2, 3, 4, 5, 6, 7, 8])
+    output = compact(input)
+    assert np.all(input == output)
+
+    # verify that all non-finite works
+    input = np.array([np.nan, np.nan, np.nan])
+    output = compact(input)
+    assert len(output) == 0
+
+    # verify that a single leading non-finite without any runs works
+    input = np.array([np.nan, 2, 3, 4, 5, 6, 7, 8])
+    output = compact(input)
+    assert np.all(input[1:] == output)
+
+    # verify that non-finites without any runs works
+    input = np.array([np.nan, 2, 3, 4, 5, np.nan, 6, 7, 8, np.nan])
+    output = compact(input)
+    expected = np.ma.masked_invalid(input[1:])
+    assert np.ma.allequal(expected, output, fill_value=True)
+
+    # verify that non-finites at front, middle, end get collapsed
+    # leading non-finites get stripped away altogether
+    input = np.array([np.nan, np.nan, np.nan, 2, 3, 4, 5, np.nan, np.nan, np.nan, 6, 7, 8, np.nan, np.nan, np.nan])
+    output = compact(input)
+    expected = np.ma.masked_invalid([2, 3, 4, 5, np.nan, 6, 7, 8, np.nan])
+    assert np.ma.allequal(expected, output, fill_value=True)

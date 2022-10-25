@@ -1885,6 +1885,37 @@ def downsample(data, n, axis=0, xvals='subsample'):
         return MetaArray(d2, info=info)
 
 
+def _compact_nonfinite(x, y, isfinite):
+    # if there are runs of consecutive non-finites,
+    #   they are collapsed into a single non-finite
+    #   and copies are returned
+    # if there are no such runs,
+    #   the originals are returned w/o copy
+    # in particular, leading non-finites are stripped away
+
+    # handle the edge case...
+    if len(isfinite) == 0:
+        return x, y, isfinite
+    # len 1 can be handled correctly by the code below
+
+    mask = np.empty_like(isfinite)
+    # find non-finites which also have a non-finite left neighbor
+
+    # "False" means that a non-finite element has a non-finite left neighbor
+    np.logical_or(isfinite[1:], isfinite[:-1], out=mask[1:])
+    # a non-finite at the beginning of the array is treated as having
+    #   a non-finite left neighbor
+    mask[0] = isfinite[0]
+
+    if not mask.all():     # find any False
+        # runs of non-finite are present
+        x = x[mask]
+        y = y[mask]
+        isfinite = isfinite[mask]
+
+    return x, y, isfinite
+
+
 def _compute_backfill_indices(isfinite):
     # the presence of inf/nans result in an empty QPainterPath being generated
     # this behavior started in Qt 5.12.3 and was introduced in this commit
@@ -2110,22 +2141,35 @@ def arrayToQPath(x, y, connect='all', finiteCheck=True):
             # if user specified to skip finite check, then we skip the heuristic
             return _arrayToQPath_finite(x, y)
 
-        # otherwise use a heuristic
-        # if non-finite aren't that many, then use_qpolyponf
+        # a common case is that the user specified "connect='finite'"
+        # "just in case" there are non-finites in the data.
+        # but usually the data ends up being all finite
         isfinite = np.isfinite(x) & np.isfinite(y)
-        nonfinite_cnt = n - np.sum(isfinite)
-        all_isfinite = nonfinite_cnt == 0
-        if all_isfinite:
-            # delegate to connect='all'
-            connect = 'all'
-            finiteCheck = False
-        elif nonfinite_cnt / n < 2 / 100:
+        if isfinite.all():
+            return _arrayToQPath_all(x, y, finiteCheck=False)
+
+        # compact runs of non-finites and strip leading non-finites
+        x, y, isfinite = _compact_nonfinite(x, y, isfinite)
+        n = x.shape[0]
+        if n == 0:
+            return QtGui.QPainterPath()
+
+        finite_cnt = np.count_nonzero(isfinite)
+
+        # if as a result of _compact_nonfinite() we end up with
+        # everything being finite, just handle it with
+        # _arrayToQPath_finite() anyway.
+
+        # use a heuristic
+        # if non-finite aren't that many, then use_qpolyponf
+        if finite_cnt >= 0.98 * n:
             return _arrayToQPath_finite(x, y, isfinite)
         else:
             # delegate to connect=ndarray
-            # finiteCheck=True, all_isfinite=False
+            # finiteCheck=True
             connect = 'array'
             connect_array = isfinite
+            all_isfinite = False
 
     if connect == 'all':
         return _arrayToQPath_all(x, y, finiteCheck)
