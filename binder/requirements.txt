@@ -1,5 +1,6 @@
-git+https://github.com/pyqtgraph/pyqtgraph.git
-pyqt5
+git+https://github.com/pijyoi/pyqtgraph.git@update-binder
+pyqt6 ~= 6.5.0
+pyqt6-qt6 ~= 6.5.0
 jupyter_rfb
 numpy
 simplejpeg
