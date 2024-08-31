@@ -121,8 +121,17 @@ class RawImageGLWidget(QtOpenGLWidgets.QOpenGLWidget):
         self.smooth = smooth
         self.opts = None
 
+        self.vertex_data = np.array([
+            [-1, -1],
+            [ 1, -1],
+            [-1,  1],
+            [ 1,  1],
+        ], dtype=np.float32)
+
+        self.m_vbo = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.VertexBuffer)
+        self.m_vao = QtOpenGL.QOpenGLVertexArrayObject(self)
         self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
-        self.m_blitter = None
+        self.m_program = None
 
     def setImage(self, img, *args, **kargs):
         """
@@ -137,25 +146,110 @@ class RawImageGLWidget(QtOpenGLWidgets.QOpenGLWidget):
         self.update()
 
     def initializeGL(self):
+        print('initialize')
         ctx = self.context()
 
         # in Python, slot will not get called during application termination
         ctx.aboutToBeDestroyed.connect(self.cleanup)
 
+        ver = ctx.format().version()
+        use_modern = ver >= (3, 3)
+
         self.glfn = OpenGLHelpers.getFunctions(ctx)
 
-        self.m_blitter = QtOpenGL.QOpenGLTextureBlitter()
-        self.m_blitter.create()
+        if use_modern:
+            vert, frag = self.get_shaders_src_core()
+        else:
+            vert, frag = self.get_shaders_src_compat()
+        self.m_program = QtOpenGL.QOpenGLShaderProgram(self)
+        self.m_program.addShaderFromSourceCode(QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex, vert)
+        self.m_program.addShaderFromSourceCode(QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment, frag)
+        if not use_modern:
+            self.m_program.bindAttributeLocation("a_position", 0)
+        self.m_program.link()
+
+        self.m_vao.create()
+
+        # the modern opengl codepath has vertices embedded in the shader
+        # and hence doesn't need a vbo
+
+        if not use_modern:
+            self.m_vbo.create()
+            self.m_vbo.bind()
+            self.m_vbo.allocate(self.vertex_data, self.vertex_data.nbytes)
+            self.m_vbo.release()
+
+            if self.m_vao.isCreated():
+                self.setup_vao()
 
     def cleanup(self):
         # explicit call of cleanup() is needed during application termination
+        print('cleanup')
         self.makeCurrent()
+        if self.m_program is not None:
+            self.m_program.setParent(None)
+            self.m_program = None
         self.m_texture.destroy()
         self.uploaded = False
-        if self.m_blitter is not None:
-            self.m_blitter.destroy()
-            self.m_blitter = None
+        self.m_vao.destroy()
+        self.m_vbo.destroy()
         self.doneCurrent()
+
+    def setup_vao(self):
+        self.m_vao.bind()
+        self.m_vbo.bind()
+        self.enable_vertex_attrib()
+        self.m_vbo.release()
+        self.m_vao.release()
+
+    def enable_vertex_attrib(self):
+        loc_pos = self.m_program.attributeLocation("a_position")
+        self.m_program.enableAttributeArray(loc_pos)
+        self.m_program.setAttributeBuffer(loc_pos, GLC.GL_FLOAT, 0, 2)
+
+    def get_shaders_src_core(self):
+        vert = """
+            #version 330 core
+            const vec2 vertices[] = vec2[4](
+                vec2(-1, -1),
+                vec2( 1, -1),
+                vec2(-1,  1),
+                vec2( 1,  1)
+            );
+            out vec2 v_texcoord;
+            void main() {
+                gl_Position = vec4(vertices[gl_VertexID], 0, 1);
+                v_texcoord = 0.5 * vec2(gl_Position.x + 1, 1 - gl_Position.y);
+            }
+        """
+        frag = """
+            #version 330 core
+            in vec2 v_texcoord;
+            out vec4 FragColor;
+            uniform sampler2D u_texture;
+            void main() {
+                FragColor = texture(u_texture, v_texcoord);
+            }
+        """
+        return vert, frag
+
+    def get_shaders_src_compat(self):
+        vert = """
+            attribute vec4 a_position;
+            varying highp vec2 v_texcoord;
+            void main() {
+                gl_Position = a_position;
+                v_texcoord = 0.5 * vec2(gl_Position.x + 1, 1 - gl_Position.y);
+            }
+        """
+        frag = """
+            varying highp vec2 v_texcoord;
+            uniform sampler2D u_texture;
+            void main() {
+                gl_FragColor = texture2D(u_texture, v_texcoord);
+            }
+        """
+        return vert, frag
 
     def uploadTexture(self):
         h, w = self.image.shape[:2]
@@ -190,7 +284,14 @@ class RawImageGLWidget(QtOpenGLWidgets.QOpenGLWidget):
         if not self.uploaded:
             self.uploadTexture()
 
-        target = QtGui.QMatrix4x4()
-        self.m_blitter.bind()
-        self.m_blitter.blit(self.m_texture.textureId(), target, QtOpenGL.QOpenGLTextureBlitter.Origin.OriginTopLeft)
-        self.m_blitter.release()
+        self.m_texture.bind()
+        self.m_program.bind()
+
+        if self.m_vao.isCreated():
+            self.m_vao.bind()
+            self.glfn.glDrawArrays(GLC.GL_TRIANGLE_STRIP, 0, 4)
+        else:
+            self.m_vbo.bind()
+            self.enable_vertex_attrib()
+            self.glfn.glDrawArrays(GLC.GL_TRIANGLE_STRIP, 0, 4)
+            self.m_vbo.release()
