@@ -8,7 +8,7 @@ import pyqtgraph as pg
 from pyqtgraph.Qt import QtCore
 from utils import FrameCounter
 
-# pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
+pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
 app = pg.mkQApp("PColorMesh Example")
 
 ## Create window with GraphicsView widget
@@ -106,6 +106,7 @@ def updateData():
     new_x = x
     new_y = y+wave_amplitude*np.cos(x/wave_length+i)
     new_z = np.exp(-(x-np.cos(i*color_speed)*xrange)**2/1000)[:-1,:-1] + color_noise
+    new_z[20:23, 20:23] = np.nan
     pcmi_auto.setData(new_x, new_y, new_z)
     pcmi_consistent.setData(new_x, new_y, new_z)
 
