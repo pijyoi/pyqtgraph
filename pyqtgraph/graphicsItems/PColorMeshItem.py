@@ -660,6 +660,7 @@ class OpenGLState(QtCore.QObject):
         out vec4 FragColor;
         uniform sampler2D u_texture;
         void main() {
+            crash;
             if (isnan(v_luminance)) discard;
             float s = clamp(v_luminance, 0.0, 1.0);
             FragColor = texture(u_texture, vec2(s, 0));
