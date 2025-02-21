@@ -1,6 +1,7 @@
 """
 This example demonstrates the use of GLSurfacePlotItem.
 """
+import os
 import sys
 
 import numpy as np
@@ -97,5 +98,15 @@ timer = QtCore.QTimer()
 timer.timeout.connect(update)
 timer.start(30)
 
+def dump(win, filename):
+    GL_RGBA = 0x1908
+    arr = win.renderToArray((640, 480), format=GL_RGBA)
+    qimg = pg.functions.ndarray_to_qimage(arr, QtGui.QImage.Format.Format_RGBA8888)
+    pathname = os.path.join(os.getenv("SCREENSHOT_DIR", "screenshots"), filename)
+    qimg.save(pathname)
+
 if __name__ == '__main__':
-    pg.exec()
+    if os.getenv('CI') is not None:
+        dump(w, "GLSurfacePlotItem.png")
+    else:
+        pg.exec()

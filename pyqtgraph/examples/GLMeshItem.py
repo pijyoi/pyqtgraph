@@ -1,6 +1,7 @@
 """
 Simple examples demonstrating the use of GLMeshItem.
 """
+import os
 import sys
 
 import pyqtgraph as pg
@@ -119,5 +120,16 @@ m6.rotate(0., 0, 1, 1)
 w.addItem(m5)
 w.addItem(m6)
 
+def dump(win, filename):
+    GL_RGBA = 0x1908
+    arr = win.renderToArray((640, 480), format=GL_RGBA)
+    qimg = pg.functions.ndarray_to_qimage(arr, QtGui.QImage.Format.Format_RGBA8888)
+    pathname = os.path.join(os.getenv("SCREENSHOT_DIR", "screenshots"), filename)
+    qimg.save(pathname)
+
 if __name__ == '__main__':
-    pg.exec()
+    if os.getenv('CI') is not None:
+        dump(w, "GLMeshItem.png")
+    else:
+        pg.exec()
+
