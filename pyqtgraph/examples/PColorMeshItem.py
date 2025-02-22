@@ -1,14 +1,22 @@
 """
 Demonstrates very basic use of PColorMeshItem
 """
+import sys
 
 import numpy as np
 
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore
+from pyqtgraph.Qt import QtCore, QtGui
 from utils import FrameCounter
 
-# pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
+if 'darwin' in sys.platform:
+    fmt = QtGui.QSurfaceFormat()
+    fmt.setRenderableType(fmt.RenderableType.OpenGL)
+    fmt.setProfile(fmt.OpenGLContextProfile.CoreProfile)
+    fmt.setVersion(4, 1)
+    QtGui.QSurfaceFormat.setDefaultFormat(fmt)
+
+pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
 app = pg.mkQApp("PColorMesh Example")
 
 ## Create window with GraphicsView widget
@@ -119,5 +127,7 @@ timer.start()
 framecnt = FrameCounter()
 framecnt.sigFpsUpdate.connect(lambda fps: textitem.setText(f'{fps:.1f} fps'))
 
-if __name__ == '__main__':
-    pg.exec()
+# if __name__ == '__main__':
+#     pg.exec()
+app.processEvents()     # force a render
+
