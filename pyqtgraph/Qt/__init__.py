@@ -378,6 +378,14 @@ def mkQApp(name=None):
             QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
             QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_UseHighDpiPixmaps)
 
+        fmt = QtGui.QSurfaceFormat()
+        fmt.setRenderableType(fmt.RenderableType.OpenGL)
+        fmt.setProfile(fmt.OpenGLContextProfile.CoreProfile)
+        fmt.setVersion(4, 1)
+        if not 'darwin' in sys.platform:
+            fmt.setOption(fmt.FormatOption.DeprecatedFunctions)
+        QtGui.QSurfaceFormat.setDefaultFormat(fmt)
+
         QAPP = QtWidgets.QApplication(sys.argv or ["pyqtgraph"])
         if QtVersion.startswith("6"):
             # issues with dark mode + windows + qt5
