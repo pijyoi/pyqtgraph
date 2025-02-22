@@ -1,12 +1,20 @@
 """
 Demonstrates selecting plot curves by mouse click
 """
+import sys
 
 import numpy as np
 
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtWidgets
+from pyqtgraph.Qt import QtGui, QtWidgets
 pg.setConfigOptions(useOpenGL=True, enableExperimental=True)
+
+if 'darwin' in sys.platform:
+    fmt = QtGui.QSurfaceFormat()
+    fmt.setRenderableType(fmt.RenderableType.OpenGL)
+    fmt.setProfile(fmt.OpenGLContextProfile.CoreProfile)
+    fmt.setVersion(4, 1)
+    QtGui.QSurfaceFormat.setDefaultFormat(fmt)
 
 app = pg.mkQApp()
 plt = pg.PlotWidget()
@@ -43,5 +51,5 @@ win = QtWidgets.QMainWindow()
 win.setCentralWidget(plt)
 win.show()
 
-if __name__ == '__main__':
-    pg.exec()
+# if __name__ == '__main__':
+#     pg.exec()
