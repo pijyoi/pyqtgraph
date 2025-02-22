@@ -87,8 +87,9 @@ jobs:
       - name: Run Tests
         run: |
           mkdir "$SCREENSHOT_DIR"
-          python -m pyqtgraph.examples.GLSurfacePlot
-          python -m pyqtgraph.examples.GLMeshItem
+          # python -m pyqtgraph.examples.GLSurfacePlot
+          # python -m pyqtgraph.examples.GLMeshItem
+          python -m pyqtgraph.examples.PColorMeshItem
         shell: bash
       - name: Upload Screenshots
         uses: actions/upload-artifact@v4
