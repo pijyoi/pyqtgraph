@@ -90,6 +90,7 @@ jobs:
           # python -m pyqtgraph.examples.GLSurfacePlot
           # python -m pyqtgraph.examples.GLMeshItem
           python -m pyqtgraph.examples.PColorMeshItem
+          python -m pyqtgraph.examples.MouseSelection
         shell: bash
       - name: Upload Screenshots
         uses: actions/upload-artifact@v4
