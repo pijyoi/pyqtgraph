@@ -1620,8 +1620,8 @@ def makeQImage(imgData, alpha=None, copy=True, transpose=True):
     return ndarray_to_qimage(imgData, imgFormat)
 
 
-def ndarray_from_qimage(qimg):
-    img_ptr = qimg.bits()
+def ndarray_from_qimage(qimg, *, writeable=False):
+    img_ptr = qimg.bits() if writeable else qimg.constBits()
 
     if img_ptr is None:
         raise ValueError("Null QImage not supported")
@@ -1632,12 +1632,7 @@ def ndarray_from_qimage(qimg):
     logical_bpl = w * depth // 8
 
     if QT_LIB.startswith('PyQt'):
-        # sizeInBytes() was introduced in Qt 5.10
-        # however PyQt5 5.12 will fail with:
-        #   "TypeError: QImage.sizeInBytes() is a private method"
-        # note that sizeInBytes() works fine with:
-        #   PyQt5 5.15, PySide2 5.12, PySide2 5.15
-        img_ptr.setsize(h * bpl)
+        img_ptr.setsize(qimg.sizeInBytes())
 
     memory = np.frombuffer(img_ptr, dtype=np.ubyte).reshape((h, bpl))
     memory = memory[:, :logical_bpl]
@@ -1665,7 +1660,7 @@ def imageToArray(img, copy=False, transpose=True):
     the QImage is collected before the array, there may be trouble).
     The array will have shape (width, height, (b,g,r,a)).
     """
-    arr = ndarray_from_qimage(img)
+    arr = ndarray_from_qimage(img, writeable=True)
 
     fmt = img.format()
     if fmt == img.Format.Format_RGB32:

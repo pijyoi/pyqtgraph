@@ -49,7 +49,7 @@ class ColorMapDisplayMixin:
             lut = self._cmap.getLookupTable(nPts=256, alpha=True)
             lut = np.expand_dims(lut, axis=0 if self.horizontal else 1)
             qimg = fn.ndarray_to_qimage(lut, QtGui.QImage.Format.Format_RGBA8888)
-            self._image = qimg if self.horizontal else qimg.mirrored()
+            self._image = qimg.copy() if self.horizontal else qimg.mirrored()
         return self._image
 
     def getMenu(self):
