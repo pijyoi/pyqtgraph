@@ -1,7 +1,6 @@
-git+https://github.com/pyqtgraph/pyqtgraph.git
+git+https://github.com/pijyoi/pyqtgraph.git@fix-threaded-rfb
 pyqt6 ~= 6.8.0
 pyqt6-qt6 ~= 6.8.0
 jupyter_rfb
 numpy
 simplejpeg
-ipykernel == 6.*

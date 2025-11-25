@@ -1,3 +1,4 @@
+import asyncio
 import jupyter_rfb
 import numpy as np
 
@@ -54,16 +55,22 @@ class GraphicsView(jupyter_rfb.RemoteFrameBuffer):
     :class:`GraphicsLayoutWidget <pyqtgraph.jupyter.GraphicsLayoutWidget>` and
     :class:`PlotWidget <pyqtgraph.jupyter.PlotWidget>` should be used instead."""
 
-    def __init__(self, **kwds):
+    def __init__(self, *, loop=None, **kwds):
         super().__init__(**kwds)
+        self.loop = loop if loop is not None else asyncio.get_running_loop()
         self.gfxView = widgets.GraphicsView.GraphicsView()
         self.logical_size = int(self.css_width[:-2]), int(self.css_height[:-2])
         self.pixel_ratio = 1.0
-        # self.gfxView.resize(*self.logical_size)
-        # self.gfxView.show()
-        # self.gfxView.resizeEvent(None)
+        self.frames = []
 
     def get_frame(self):
+        if self.frames:
+            return self.frames.pop(0)   # apparently this is atomic with the GIL
+        else:
+            self.loop.call_soon_threadsafe(self._render)
+            return None
+
+    def _render(self):
         w, h = self.logical_size
         dpr = self.pixel_ratio
         buf = np.empty((int(h * dpr), int(w * dpr), 4), dtype=np.uint8)
@@ -73,9 +80,17 @@ class GraphicsView(jupyter_rfb.RemoteFrameBuffer):
         painter = QtGui.QPainter(qimg)
         self.gfxView.render(painter, self.gfxView.viewRect(), self.gfxView.rect())
         painter.end()
-        return buf
+        self.frames.append(buf)         # apparently this is atomic with the GIL
+
+        # we were called from get_frame() because self.frames was empty.
+        # now that we have populated self.frames, queue another get_frame()
+        # to consume self.frames
+        self.request_draw()
     
     def handle_event(self, event):
+        self.loop.call_soon_threadsafe(self._handle_event, event)
+
+    def _handle_event(self, event):
         event_type = event["event_type"]
 
         if event_type == "resize":
