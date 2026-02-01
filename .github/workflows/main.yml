@@ -22,7 +22,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ]
+        os: [ubuntu-latest, macos-latest]
         qt-lib: [pyqt, ]
         python-version: ["3.14", ]
         include:
