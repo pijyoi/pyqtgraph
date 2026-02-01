@@ -211,6 +211,10 @@ class GLViewMixin:
         return [self._itemNames[i[1]] for i in items]
     
     def paintGL(self):
+        # Qt may have triggered some OpenGL errors, drain those errors away.
+        while GL.glGetError() != GL.GL_NO_ERROR:
+            pass
+
         # when called by Qt, glViewport has already been called
         # with device pixel ratio taken of
         region = self.getViewport()
