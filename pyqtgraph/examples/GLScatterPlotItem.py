@@ -11,7 +11,7 @@ import pyqtgraph.opengl as gl
 from pyqtgraph import functions as fn
 from pyqtgraph.Qt import QtCore
 
-if 'darwin' in sys.platform:
+if True: # 'darwin' in sys.platform:
     fmt = QtGui.QSurfaceFormat()
     fmt.setRenderableType(fmt.RenderableType.OpenGL)
     fmt.setProfile(fmt.OpenGLContextProfile.CoreProfile)
