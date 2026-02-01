@@ -214,9 +214,8 @@ class GLViewMixin:
         # when called by Qt, glViewport has already been called
         # with device pixel ratio taken of
 
-        ctx = self.context()
-        fmt = ctx.format()
-        print(fmt.version(), fmt.profile())
+        while GL.glGetError() != GL.GL_NO_ERROR:
+            pass
 
         region = self.getViewport()
         self.paint(region=region, viewport=region)
