@@ -5,10 +5,7 @@ import pytest
 
 from pyqtgraph.Qt import QtCore
 
-try:
-    QtCore.QLoggingCategory.setFilterRules("qt.pyside.libpyside.warning=true")
-except AttributeError:
-    pass  # PySide2 does not expose `QLoggingCategory` although Qt5 has it
+QtCore.QLoggingCategory.setFilterRules("qt.pyside.libpyside.warning=true")
 
 
 @pytest.fixture

@@ -32,7 +32,7 @@ def walkNestedDict(exDict):
 class ExampleLoader(QtWidgets.QMainWindow):
     # update qtLibCombo item order to match bindings in the UI file and recreate
     # the templates files if you change bindings.
-    bindings = {'PyQt6': 0, 'PySide6': 1, 'PyQt5': 2, 'PySide2': 3}
+    bindings = {'PyQt6': 0, 'PySide6': 1, 'PyQt5': 2}
     modules = tuple(m.name for m in pkgutil.iter_modules())
     def __init__(self):
         QtWidgets.QMainWindow.__init__(self)

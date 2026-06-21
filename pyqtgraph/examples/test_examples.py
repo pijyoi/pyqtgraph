@@ -44,7 +44,6 @@ files = sorted(set(files))
 frontends = {
     Qt.PYQT5: False,
     Qt.PYQT6: False,
-    Qt.PYSIDE2: False,
     Qt.PYSIDE6: False,
 }
 # sort out which of the front ends are available

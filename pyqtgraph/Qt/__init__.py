@@ -11,10 +11,7 @@ import platform
 import sys
 from importlib import resources
 
-PYSIDE = 'PySide'
-PYSIDE2 = 'PySide2'
 PYSIDE6 = 'PySide6'
-PYQT4 = 'PyQt4'
 PYQT5 = 'PyQt5'
 PYQT6 = 'PyQt6'
 
@@ -32,7 +29,7 @@ if QT_LIB is not None:
 ## is already imported. If not, then attempt to import in the order
 ## specified in libOrder.
 if QT_LIB is None:
-    libOrder = [PYQT6, PYSIDE6, PYQT5, PYSIDE2]
+    libOrder = [PYQT6, PYSIDE6, PYQT5]
 
     for lib in libOrder:
         if lib in sys.modules:
@@ -50,7 +47,7 @@ if QT_LIB is None:
             pass
 
 if QT_LIB is None:
-    raise ImportError("PyQtGraph requires one of PyQt5, PyQt6, PySide2 or PySide6; none of these packages could be imported.")
+    raise ImportError("PyQtGraph requires one of PyQt5, PyQt6 or PySide6; none of these packages could be imported.")
 
 
 class FailedImport(object):
@@ -111,19 +108,6 @@ elif QT_LIB == PYQT6:
 
     VERSION_INFO = 'PyQt6 ' + QtCore.PYQT_VERSION_STR + ' Qt ' + QtCore.QT_VERSION_STR
 
-elif QT_LIB == PYSIDE2:
-    try:
-        from PySide2 import QtSvg
-    except ImportError as err:
-        QtSvg = FailedImport(err)
-    try:
-        from PySide2 import QtTest
-    except ImportError as err:
-        QtTest = FailedImport(err)
-
-    import PySide2
-    import shiboken2 as shiboken
-    VERSION_INFO = 'PySide2 ' + PySide2.__version__ + ' Qt ' + QtCore.__version__
 elif QT_LIB == PYSIDE6:
     try:
         from PySide6 import QtSvg
@@ -165,8 +149,8 @@ else:
         setattr(QtGui, module, attr)
 
 
-# Common to PySide2 and PySide6
-if QT_LIB in [PYSIDE2, PYSIDE6]:
+# PySide6
+if QT_LIB in [PYSIDE6]:
     QtVersion = QtCore.__version__
     QtVersionInfo = QtCore.__version_info__
     loadUiType = _loadUiType
