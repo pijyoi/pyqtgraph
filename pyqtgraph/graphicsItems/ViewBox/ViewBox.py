@@ -1093,8 +1093,19 @@ class ViewBox(GraphicsWidget):
 
         #print self.name, "ViewBox.linkedViewChanged", axis, view.viewRange()[axis]
         vr = view.viewRect()
-        vg = view.screenGeometry()
-        sg = self.screenGeometry()
+        own_widget = self.getViewWidget()
+        if own_widget is not None and own_widget is view.getViewWidget():
+            # both view boxes are displayed by the same widget; compare their
+            # geometry in widget-local coordinates. going through mapToGlobal
+            # is unreliable under per-monitor dpi scaling (e.g. maximized
+            # windows in mixed-dpi multi-monitor setups on Windows) and has
+            # been observed to desynchronize linked axes.
+            # https://github.com/pyqtgraph/pyqtgraph/issues/3582
+            vg = own_widget.mapFromScene(view.sceneBoundingRect()).boundingRect()
+            sg = own_widget.mapFromScene(self.sceneBoundingRect()).boundingRect()
+        else:
+            vg = view.screenGeometry()
+            sg = self.screenGeometry()
         if vg is None or sg is None:
             return
 
