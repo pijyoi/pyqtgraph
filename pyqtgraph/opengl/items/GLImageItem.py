@@ -1,4 +1,5 @@
 import enum
+import textwrap
 
 import numpy as np
 
@@ -167,7 +168,7 @@ class GLImageItem(GLGraphicsItem):
 
 
 SHADER_LEGACY = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         attribute vec4 a_position;
         attribute vec2 a_texcoord;
@@ -176,8 +177,8 @@ SHADER_LEGACY = {
             gl_Position = u_mvp * a_position;
             v_texcoord = a_texcoord;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -187,11 +188,11 @@ SHADER_LEGACY = {
         {
             gl_FragColor = texture2D(u_texture, v_texcoord);
         }
-    """,
+    """),
 }
 
 SHADER_CORE = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         in vec4 a_position;
         in vec2 a_texcoord;
@@ -200,8 +201,8 @@ SHADER_CORE = {
             gl_Position = u_mvp * a_position;
             v_texcoord = a_texcoord;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -212,5 +213,5 @@ SHADER_CORE = {
         {
             fragColor = texture(u_texture, v_texcoord);
         }
-    """,
+    """),
 }

@@ -1,4 +1,5 @@
 import enum
+import textwrap
 
 import numpy as np
 
@@ -243,7 +244,7 @@ def drawVolume(shape, ax, d, sliceDensity):
 
 
 SHADER_LEGACY = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         attribute vec4 a_position;
         attribute vec3 a_texcoord;
@@ -252,19 +253,19 @@ SHADER_LEGACY = {
             gl_Position = u_mvp * a_position;
             v_texcoord = a_texcoord;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         uniform sampler3D u_texture;
         varying vec3 v_texcoord;
         void main()
         {
             gl_FragColor = texture3D(u_texture, v_texcoord);
         }
-    """,
+    """),
 }
 
 SHADER_CORE = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         in vec4 a_position;
         in vec3 a_texcoord;
@@ -273,8 +274,8 @@ SHADER_CORE = {
             gl_Position = u_mvp * a_position;
             v_texcoord = a_texcoord;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         precision lowp sampler3D;
@@ -286,5 +287,5 @@ SHADER_CORE = {
         {
             fragColor = texture(u_texture, v_texcoord);
         }
-    """,
+    """),
 }

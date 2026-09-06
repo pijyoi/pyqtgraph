@@ -1,4 +1,5 @@
 import enum
+import textwrap
 
 import numpy as np
 
@@ -204,7 +205,7 @@ class GLLinePlotItem(GLGraphicsItem):
 
 
 SHADER_LEGACY = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         attribute vec4 a_position;
         attribute vec4 a_color;
@@ -213,8 +214,8 @@ SHADER_LEGACY = {
             v_color = a_color;
             gl_Position = u_mvp * a_position;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -222,11 +223,11 @@ SHADER_LEGACY = {
         void main() {
             gl_FragColor = v_color;
         }
-    """,
+    """),
 }
 
 SHADER_CORE = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         in vec4 a_position;
         in vec4 a_color;
@@ -235,8 +236,8 @@ SHADER_CORE = {
             v_color = a_color;
             gl_Position = u_mvp * a_position;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -245,5 +246,5 @@ SHADER_CORE = {
         void main() {
             fragColor = v_color;
         }
-    """,
+    """),
 }

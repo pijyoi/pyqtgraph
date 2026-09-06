@@ -1,5 +1,6 @@
 import enum
 import math
+import textwrap
 
 import numpy as np
 
@@ -235,7 +236,7 @@ def _is_compatibility_profile(context):
 ##
 
 SHADER_LEGACY = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform vec2 u_scale;
 
         uniform mat4 u_modelview;
@@ -262,8 +263,8 @@ SHADER_LEGACY = {
                 gl_PointSize /= pxSize;
             }
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -275,11 +276,11 @@ SHADER_LEGACY = {
             if (dot(xy, xy) <= 1.0) gl_FragColor = v_color;
             else discard;
         }
-    """
+    """)
 }
 
 SHADER_CORE = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform vec2 u_scale;
 
         uniform mat4 u_modelview;
@@ -306,8 +307,8 @@ SHADER_CORE = {
                 gl_PointSize /= pxSize;
             }
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -320,5 +321,5 @@ SHADER_CORE = {
             if (dot(xy, xy) <= 1.0) fragColor = v_color;
             else discard;
         }
-    """
+    """)
 }
