@@ -22,9 +22,7 @@ class GLVolumeItem(GLGraphicsItem):
     
     Displays volumetric data. 
     """
-    
-    _shaderProgram = None
-    
+
     def __init__(self, data, sliceDensity=1, smooth=True, glOptions='translucent', parentItem=None):
         """
         ==============  =======================================================================================
@@ -41,11 +39,19 @@ class GLVolumeItem(GLGraphicsItem):
         self.sliceDensity = sliceDensity
         self.smooth = smooth
         self.data = None
-        self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target3D)
+        self.m_texture = None
         self.m_vbo_position = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.VertexBuffer)
         self.dirty_bits = DirtyFlag(0)
         self.setParentItem(parentItem)
         self.setData(data)
+
+    def cleanupGL(self):
+        if self.m_texture is not None:
+            self.m_texture.destroy()
+            # QOpenGLTexture has to be re-created on new context
+            self.m_texture = None
+        self.m_vbo_position.destroy()
+        self.dirty_bits = DirtyFlag.POSITION | DirtyFlag.TEXTURE
 
     def setData(self, data):
         if self.data is None or data is None or self.data.shape != data.shape:
@@ -57,6 +63,8 @@ class GLVolumeItem(GLGraphicsItem):
         self.update()
 
     def _uploadData(self):
+        if self.m_texture is None:
+            self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target3D)
         tex = self.m_texture
 
         data = np.ascontiguousarray(self.data.transpose((2,1,0,3)))
@@ -93,12 +101,11 @@ class GLVolumeItem(GLGraphicsItem):
 
         return all_vertices, offsets
 
-    @staticmethod
-    def getShaderProgram():
-        klass = GLVolumeItem
-
-        if klass._shaderProgram is not None:
-            return klass._shaderProgram
+    def shaderProgram(self, *, shaders_cache):
+        klass = self.__class__
+        cache_key = f'{klass.__module__}.{klass.__qualname__}'
+        if (program := shaders_cache.get(cache_key)) is not None:
+            return program
 
         ctx = QtGui.QOpenGLContext.currentContext()
         fmt = ctx.format()
@@ -128,14 +135,19 @@ class GLVolumeItem(GLGraphicsItem):
         if not program.link():
             raise RuntimeError(program.log())
 
-        klass._shaderProgram = program
+        shaders_cache[cache_key] = program
         return program
         
     def paint(self):
         if self.data is None:
             return
-        
-        self.setupGLState()
+
+        if (view := self.view()) is None:
+            return
+        context = view.context()
+        glfn = self.glFunctions(context)
+
+        self.setupGLState(context=context)
 
         if DirtyFlag.POSITION in self.dirty_bits:
             vertices, self.lists = self.computeVertices()
@@ -145,11 +157,11 @@ class GLVolumeItem(GLGraphicsItem):
             self._uploadData()
         self.dirty_bits = DirtyFlag(0)
 
-        mat_mvp = self.mvpMatrix()
+        mat_mvp = self.mvpMatrix(view=view)
 
         # calculate camera coordinates in this model's local space.
         # (in eye space, the camera is at the origin)
-        modelview = self.modelViewMatrix()
+        modelview = self.modelViewMatrix(view=view)
         cam_local = modelview.inverted()[0].map(QtGui.QVector3D())
 
         # in local space, the model spans (0,0,0) to data.shape
@@ -160,9 +172,8 @@ class GLVolumeItem(GLGraphicsItem):
         d = 1 if cam[ax] > 0 else -1
         offset, num_vertices = self.lists[(ax,d)]
 
-        glfn = self.glFunctions()
-
-        program = self.getShaderProgram()
+        shaders_cache = self.shadersCache(view=view)
+        program = self.shaderProgram(shaders_cache=shaders_cache)
 
         loc_pos, loc_tex = 0, 1
         self.m_vbo_position.bind()
