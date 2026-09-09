@@ -22,9 +22,7 @@ class GLImageItem(GLGraphicsItem):
     
     Displays image data as a textured quad.
     """
-    
-    _shaderProgram = None
-    
+
     def __init__(self, data, smooth=False, glOptions='translucent', parentItem=None):
         """
         ==============  =======================================================================================
@@ -39,12 +37,20 @@ class GLImageItem(GLGraphicsItem):
         OpenGLHelpers.suppress_texture_warning()
         self.setGLOptions(glOptions)
         self.smooth = smooth
-        self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
+        self.m_texture = None
         self.m_vbo_position = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.VertexBuffer)
         self.dirty_bits = DirtyFlag(0)
         self.dirty_bits |= DirtyFlag.POSITION
         self.setParentItem(parentItem)
         self.setData(data)
+
+    def cleanupGL(self):
+        if self.m_texture is not None:
+            self.m_texture.destroy()
+            # QOpenGLTexture has to be re-created on new context
+            self.m_texture = None
+        self.m_vbo_position.destroy()
+        self.dirty_bits = DirtyFlag.POSITION | DirtyFlag.TEXTURE
 
     def setData(self, data):
         self.data = data
@@ -52,6 +58,8 @@ class GLImageItem(GLGraphicsItem):
         self.update()
 
     def _updateTexture(self):
+        if self.m_texture is None:
+            self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
         tex = self.m_texture
 
         data = np.ascontiguousarray(self.data.transpose((1,0,2)))
@@ -82,12 +90,11 @@ class GLImageItem(GLGraphicsItem):
             QtOpenGL.QOpenGLTexture.PixelType.UInt8,
             data)
 
-    @staticmethod
-    def getShaderProgram():
-        klass = GLImageItem
-
-        if klass._shaderProgram is not None:
-            return klass._shaderProgram
+    def shaderProgram(self):
+        klass = self.__class__
+        cache_key = f'{klass.__module__}.{klass.__qualname__}'
+        if (program := self.getShaderProgram(cache_key)) is not None:
+            return program
 
         ctx = QtGui.QOpenGLContext.currentContext()
         fmt = ctx.format()
@@ -117,7 +124,7 @@ class GLImageItem(GLGraphicsItem):
         if not program.link():
             raise RuntimeError(program.log())
 
-        klass._shaderProgram = program
+        self.setShaderProgram(cache_key, program)
         return program
 
     def paint(self):
@@ -141,7 +148,7 @@ class GLImageItem(GLGraphicsItem):
             self._updateTexture()
         self.dirty_bits = DirtyFlag(0)
 
-        program = self.getShaderProgram()
+        program = self.shaderProgram()
         loc_pos, loc_tex = 0, 1
         self.m_vbo_position.bind()
         program.setAttributeBuffer(loc_pos, GLC.GL_UNSIGNED_BYTE, 0*1, 2, 4*1)

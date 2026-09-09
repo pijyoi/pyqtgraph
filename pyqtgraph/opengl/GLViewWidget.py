@@ -47,6 +47,7 @@ class GLViewMixin:
         self._projectionStack = []
         self.default_vao = QtOpenGL.QOpenGLVertexArrayObject(self)
         self.glfn = None
+        self.shadersCache = {}
 
     def deviceWidth(self):
         dpr = self.devicePixelRatioF()
@@ -77,7 +78,7 @@ class GLViewMixin:
         self.items.append(item)
 
         if self.isValid():
-            item.initialize()
+            self._initializeItem(item)
                 
         item._setView(self)
         self.update()
@@ -88,15 +89,15 @@ class GLViewMixin:
         """
         self.items.remove(item)
         item._setView(None)
+        self._cleanupItem(item)
         self.update()
 
     def clear(self):
         """
         Remove all items from the scene.
         """
-        for item in self.items:
-            item._setView(None)
-        self.items = []
+        for item in self.items[:]:
+            self.removeItem(item)
         self.update()        
         
     def initializeGL(self):
@@ -118,16 +119,32 @@ class GLViewMixin:
                 f"pyqtgraph.opengl: Requires >= OpenGL 2.1; Found {fmt.version()}"
             )
 
+        ctx.aboutToBeDestroyed.connect(self.cleanupGL)
+
         # Core profile requires a non-default VAO
         if fmt.profile() == QtGui.QSurfaceFormat.OpenGLContextProfile.CoreProfile:
-            if not self.default_vao.isCreated():
-                self.default_vao.create()
-                self.default_vao.bind()
+            self.default_vao.create()
+            self.default_vao.bind()
 
         for item in self.items:
-            if not item.isInitialized():
-                item.initialize()
-        
+            self._initializeItem(item)
+
+    def _initializeItem(self, item):
+        item.initializeGL()
+        for child in item.childItems():
+            self._initializeItem(child)
+
+    def cleanupGL(self):
+        self.default_vao.destroy()
+        self.shadersCache.clear()
+        for child in self.items:
+            self._cleanupItem(child)
+
+    def _cleanupItem(self, item):
+        item.cleanupGL()
+        for child in item.childItems():
+            self._cleanupItem(child)
+
     def setBackgroundColor(self, *args, **kwargs):
         """
         Set the background color of the widget. Accepts the same arguments as

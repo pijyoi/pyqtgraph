@@ -20,8 +20,6 @@ class DirtyFlag(enum.Flag):
 
 class GLScatterPlotItem(GLGraphicsItem):
     """Draws points at a list of 3D positions."""
-    
-    _shaderProgram = None
 
     def __init__(self, parentItem=None, **kwargs):
         super().__init__()
@@ -39,6 +37,12 @@ class GLScatterPlotItem(GLGraphicsItem):
 
         self.setParentItem(parentItem)
         self.setData(**kwargs)
+
+    def cleanupGL(self):
+        self.m_vbo_position.destroy()
+        self.m_vbo_color.destroy()
+        self.m_vbo_size.destroy()
+        self.dirty_bits = DirtyFlag.POSITION | DirtyFlag.COLOR | DirtyFlag.SIZE
 
     def setData(self, **kwargs):
         """
@@ -85,12 +89,11 @@ class GLScatterPlotItem(GLGraphicsItem):
         self.pxMode = kwargs.get('pxMode', self.pxMode)
         self.update()
 
-    @staticmethod
-    def getShaderProgram():
-        klass = GLScatterPlotItem
-
-        if klass._shaderProgram is not None:
-            return klass._shaderProgram
+    def shaderProgram(self):
+        klass = self.__class__
+        cache_key = f'{klass.__module__}.{klass.__qualname__}'
+        if (program := self.getShaderProgram(cache_key)) is not None:
+            return program
 
         ctx = QtGui.QOpenGLContext.currentContext()
         fmt = ctx.format()
@@ -123,7 +126,7 @@ class GLScatterPlotItem(GLGraphicsItem):
         if not program.link():
             raise RuntimeError(program.log())
 
-        klass._shaderProgram = program
+        self.setShaderProgram(cache_key, program)
         return program
 
     def paint(self):
@@ -144,9 +147,11 @@ class GLScatterPlotItem(GLGraphicsItem):
         if DirtyFlag.POSITION in self.dirty_bits:
             upload_vbo(self.m_vbo_position, self.pos)
         if DirtyFlag.COLOR in self.dirty_bits:
-            upload_vbo(self.m_vbo_color, self.color)
+            if isinstance(self.color, np.ndarray):
+                upload_vbo(self.m_vbo_color, self.color)
         if DirtyFlag.SIZE in self.dirty_bits:
-            upload_vbo(self.m_vbo_size, self.size)
+            if isinstance(self.size, np.ndarray):
+                upload_vbo(self.m_vbo_size, self.size)
         self.dirty_bits = DirtyFlag(0)
 
         if not context.isOpenGLES():
@@ -155,7 +160,7 @@ class GLScatterPlotItem(GLGraphicsItem):
 
             glfn.glEnable(GLC.GL_PROGRAM_POINT_SIZE)
 
-        program = self.getShaderProgram()
+        program = self.shaderProgram()
 
         enabled_locs = []
 

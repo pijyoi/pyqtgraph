@@ -1,4 +1,5 @@
 import textwrap
+import warnings
 
 import numpy as np
 
@@ -7,11 +8,9 @@ from ..Qt import OpenGLHelpers
 
 ## For centralizing and managing vertex/fragment shader programs.
 
-def initShaders():
-    global Shaders
-    Shaders = [
-        ShaderProgram(None, [
-            VertexShader(textwrap.dedent("""
+shader_sources = {
+        "default": {
+            'vertex': textwrap.dedent("""
                 uniform mat4 u_mvp;
                 attribute vec4 a_position;
                 attribute vec4 a_color;
@@ -20,8 +19,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """)),
-            FragmentShader(textwrap.dedent("""
+            """),
+            'fragment': textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -29,13 +28,13 @@ def initShaders():
                 void main() {
                     gl_FragColor = v_color;
                 }
-            """))
-        ]),
+            """)
+        },
 
         ## increases fragment alpha as the normal turns orthogonal to the view
         ## this is useful for viewing shells that enclose a volume (such as isosurfaces)
-        ShaderProgram('balloon', [
-            VertexShader(textwrap.dedent("""
+        "balloon": {
+            'vertex': textwrap.dedent("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -48,8 +47,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """)),
-            FragmentShader(textwrap.dedent("""
+            """),
+            'fragment': textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -60,13 +59,13 @@ def initShaders():
                     color.w = min(color.w + 2.0 * color.w * pow(v_normal.x*v_normal.x + v_normal.y*v_normal.y, 5.0), 1.0);
                     gl_FragColor = color;
                 }
-            """))
-        ]),
-        
+            """)
+        },
+
         ## colors fragments based on face normals relative to view
         ## This means that the colors will change depending on how the view is rotated
-        ShaderProgram('viewNormalColor', [   
-            VertexShader(textwrap.dedent("""
+        "viewNormalColor": {
+            'vertex': textwrap.dedent("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -79,8 +78,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """)),
-            FragmentShader(textwrap.dedent("""
+            """),
+            'fragment': textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -90,12 +89,12 @@ def initShaders():
                     vec3 rgb = (v_normal + 1.0) * 0.5;
                     gl_FragColor = vec4(rgb, v_color.a);
                 }
-            """))
-        ]),
-        
+            """)
+        },
+
         ## colors fragments based on absolute face normals.
-        ShaderProgram('normalColor', [   
-            VertexShader(textwrap.dedent("""
+        "normalColor": {
+            'vertex': textwrap.dedent("""
                 uniform mat4 u_mvp;
                 attribute vec4 a_position;
                 attribute vec3 a_normal;
@@ -107,8 +106,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """)),
-            FragmentShader(textwrap.dedent("""
+            """),
+            'fragment': textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -118,13 +117,13 @@ def initShaders():
                     vec3 rgb = (v_normal + 1.0) * 0.5;
                     gl_FragColor = vec4(rgb, v_color.a);
                 }
-            """))
-        ]),
-        
+            """)
+        },
+
         ## very simple simulation of lighting. 
         ## The light source position is always relative to the camera.
-        ShaderProgram('shaded', [   
-            VertexShader(textwrap.dedent("""
+        "shaded": {
+            'vertex': textwrap.dedent("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -137,8 +136,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """)),
-            FragmentShader(textwrap.dedent("""
+            """),
+            'fragment': textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -150,12 +149,12 @@ def initShaders():
                     vec3 rgb = v_color.rgb * (0.2 + p);
                     gl_FragColor = vec4(rgb, v_color.a);
                 }
-            """))
-        ]),
-        
+            """)
+        },
+
         ## colors get brighter near edges of object
-        ShaderProgram('edgeHilight', [   
-            VertexShader(textwrap.dedent("""
+        "edgeHilight": {
+            'vertex': textwrap.dedent("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -168,8 +167,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """)),
-            FragmentShader(textwrap.dedent("""
+            """),
+            'fragment': textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -180,9 +179,9 @@ def initShaders():
                     vec3 rgb = v_color.rgb + s * (1.0-v_color.rgb);
                     gl_FragColor = vec4(rgb, v_color.a);
                 }
-            """))
-        ]),
-        
+            """)
+        },
+
         ## colors fragments by z-value.
         ## This is useful for coloring surface plots by height.
         ## This shader uses a uniform called "colorMap" to determine how to map the colors:
@@ -190,8 +189,8 @@ def initShaders():
         ##    green = pow(colorMap[3]*(z + colorMap[4]), colorMap[5])
         ##    blue  = pow(colorMap[6]*(z + colorMap[7]), colorMap[8])
         ## (set the values like this: shader['uniformMap'] = array([...])
-        ShaderProgram('heightColor', [
-            VertexShader(textwrap.dedent("""
+        "heightColor": {
+            'vertex': textwrap.dedent("""
                 uniform mat4 u_mvp;
                 attribute vec4 a_position;
                 varying float zpos;
@@ -199,8 +198,8 @@ def initShaders():
                     zpos = a_position.z;
                     gl_Position = u_mvp * a_position;
                 }
-            """)),
-            FragmentShader(textwrap.dedent("""
+            """),
+            'fragment': textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -213,27 +212,25 @@ def initShaders():
                     if (colorMap[2] != 1.0)
                         color.x = pow(color.x, colorMap[2]);
                     color.x = clamp(color.x, 0.0, 1.0);
-                    
+
                     color.y = colorMap[3] * (zpos + colorMap[4]);
                     if (colorMap[5] != 1.0)
                         color.y = pow(color.y, colorMap[5]);
                     color.y = clamp(color.y, 0.0, 1.0);
-                    
+
                     color.z = colorMap[6] * (zpos + colorMap[7]);
                     if (colorMap[8] != 1.0)
                         color.z = pow(color.z, colorMap[8]);
                     color.z = clamp(color.z, 0.0, 1.0);
-                    
+
                     gl_FragColor = vec4(color, 1.0);
                 }
-            """)),
-        ], uniforms={'colorMap': [1, 1, 1, 1, 0.5, 1, 1, 0, 1]}),
-
-    ]
-
-
-def getShaderProgram(name):
-    return ShaderProgram.names[name]
+            """),
+            'uniforms': {
+                'colorMap': [1, 1, 1, 1, 0.5, 1, 1, 0, 1]
+            },
+        },
+}
 
 class Shader:
     def __init__(self, shaderType: QtOpenGL.QOpenGLShader.ShaderTypeBit, sourceCode: str):
@@ -270,11 +267,8 @@ class FragmentShader(Shader):
         super().__init__(QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment, sourceCode)
 
 class ShaderProgram:
-    names = {}
-
     def __init__(self, name, shaders, uniforms=None):
         self.name = name
-        ShaderProgram.names[name] = self
         self.shaders = shaders
         self.prog : QtOpenGL.QOpenGLShaderProgram | None = None
         self.uniformData = {}
@@ -351,4 +345,29 @@ class ShaderProgram:
         """Return the location integer for a uniform variable in this program"""
         return self.program().uniformLocation(name)
 
-initShaders()
+def shader_program_factory(name):
+    obj = shader_sources[name]
+    shaders = [VertexShader(obj['vertex']), FragmentShader(obj['fragment'])]
+    uniforms = obj.get('uniforms', None)
+    program = ShaderProgram(name, shaders, uniforms=uniforms)
+    return program
+
+def shader_get_uniforms(name):
+    return shader_sources[name].get('uniforms', {})
+
+# old global registry of shader programs, for backwards
+# compatibility with code that uses getShaderProgram()
+global_registry = {}
+
+def getShaderProgram(name):
+    warnings.warn(
+        "shaders.getShaderProgram is deprecated and will be removed in a future version of pyqtgraph",
+        DeprecationWarning, stacklevel=2
+    )
+
+    if name is None:
+        name = 'default'
+
+    if name not in global_registry:
+        global_registry[name] = shader_program_factory(name)
+    return global_registry[name]

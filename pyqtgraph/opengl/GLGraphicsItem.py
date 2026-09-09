@@ -38,7 +38,6 @@ class GLGraphicsItem(QtCore.QObject):
         self.__children: list[GLGraphicsItem] = list()
         self.__transform = Transform3D()
         self.__visible = True
-        self.__initialized = False
         self.__glctx: QtGui.QOpenGLContext | None = None
         self.__glfns = None
         self.setParentItem(parentItem)
@@ -119,12 +118,10 @@ class GLGraphicsItem(QtCore.QObject):
         self.__view = v
         
     def view(self):
-        if self.__parent is None:
-            # top level object
-            return self.__view
-        else:
-            # recurse
-            return self.__parent.view()
+        item = self
+        while item.__parent is not None:
+            item = item.__parent
+        return item.__view
         
     def setDepthValue(self, value):
         """
@@ -238,18 +235,19 @@ class GLGraphicsItem(QtCore.QObject):
         view, as it may be obscured or outside of the current view area."""
         return self.__visible
     
-    def initialize(self):
-        self.initializeGL()
-        self.__initialized = True
-
-    def isInitialized(self):
-        return self.__initialized
-    
     def initializeGL(self):
         """
-        Called after an item is added to a GLViewWidget. 
-        The widget's GL context is made current before this method is called.
-        (So this would be an appropriate time to generate lists, upload textures, etc.)
+        Called when the item may instantiate its OpenGL objects.
+        Note that this method may be called more than once during the life-cycle
+        of the item.
+        It is recommended to perform initialization of OpenGL objects lazily
+        rather than in this method.
+        """
+        pass
+
+    def cleanupGL(self):
+        """
+        Called when the item should perform cleanup on its OpenGL objects.
         """
         pass
     
@@ -337,3 +335,13 @@ class GLGraphicsItem(QtCore.QObject):
             self.__glctx = glctx
             self.__glfns = OpenGLHelpers.getFunctions(glctx)
         return self.__glfns
+
+    def getShaderProgram(self, cache_key: str) -> QtOpenGL.QOpenGLShaderProgram | None:
+        if (view := self.view()) is None:
+            return None
+        return view.shadersCache.get(cache_key, None)
+
+    def setShaderProgram(self, cache_key: str, program: QtOpenGL.QOpenGLShaderProgram):
+        if (view := self.view()) is None:
+            return
+        view.shadersCache[cache_key] = program

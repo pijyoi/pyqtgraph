@@ -22,9 +22,7 @@ class GLVolumeItem(GLGraphicsItem):
     
     Displays volumetric data. 
     """
-    
-    _shaderProgram = None
-    
+
     def __init__(self, data, sliceDensity=1, smooth=True, glOptions='translucent', parentItem=None):
         """
         ==============  =======================================================================================
@@ -41,11 +39,19 @@ class GLVolumeItem(GLGraphicsItem):
         self.sliceDensity = sliceDensity
         self.smooth = smooth
         self.data = None
-        self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target3D)
+        self.m_texture = None
         self.m_vbo_position = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.VertexBuffer)
         self.dirty_bits = DirtyFlag(0)
         self.setParentItem(parentItem)
         self.setData(data)
+
+    def cleanupGL(self):
+        if self.m_texture is not None:
+            self.m_texture.destroy()
+            # QOpenGLTexture has to be re-created on new context
+            self.m_texture = None
+        self.m_vbo_position.destroy()
+        self.dirty_bits = DirtyFlag.POSITION | DirtyFlag.TEXTURE
 
     def setData(self, data):
         if self.data is None or data is None or self.data.shape != data.shape:
@@ -57,6 +63,8 @@ class GLVolumeItem(GLGraphicsItem):
         self.update()
 
     def _uploadData(self):
+        if self.m_texture is None:
+            self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target3D)
         tex = self.m_texture
 
         data = np.ascontiguousarray(self.data.transpose((2,1,0,3)))
@@ -93,12 +101,11 @@ class GLVolumeItem(GLGraphicsItem):
 
         return all_vertices, offsets
 
-    @staticmethod
-    def getShaderProgram():
-        klass = GLVolumeItem
-
-        if klass._shaderProgram is not None:
-            return klass._shaderProgram
+    def shaderProgram(self):
+        klass = self.__class__
+        cache_key = f'{klass.__module__}.{klass.__qualname__}'
+        if (program := self.getShaderProgram(cache_key)) is not None:
+            return program
 
         ctx = QtGui.QOpenGLContext.currentContext()
         fmt = ctx.format()
@@ -128,7 +135,7 @@ class GLVolumeItem(GLGraphicsItem):
         if not program.link():
             raise RuntimeError(program.log())
 
-        klass._shaderProgram = program
+        self.setShaderProgram(cache_key, program)
         return program
         
     def paint(self):
@@ -162,7 +169,7 @@ class GLVolumeItem(GLGraphicsItem):
 
         glfn = self.glFunctions()
 
-        program = self.getShaderProgram()
+        program = self.shaderProgram()
 
         loc_pos, loc_tex = 0, 1
         self.m_vbo_position.bind()
