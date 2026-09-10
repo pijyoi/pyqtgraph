@@ -1,10 +1,12 @@
 import enum
 import math
+import textwrap
 
 import numpy as np
 
 from ...Qt import QtGui, QtOpenGL
 from ...Qt import OpenGLConstants as GLC
+from ...Qt.OpenGLHelpers import upload_vbo
 from ..GLGraphicsItem import GLGraphicsItem
 
 __all__ = ['GLScatterPlotItem']
@@ -83,19 +85,6 @@ class GLScatterPlotItem(GLGraphicsItem):
         self.pxMode = kwargs.get('pxMode', self.pxMode)
         self.update()
 
-    def upload_vbo(self, vbo, arr):
-        if arr is None:
-            vbo.destroy()
-            return
-        if not vbo.isCreated():
-            vbo.create()
-        vbo.bind()
-        if vbo.size() != arr.nbytes:
-            vbo.allocate(arr, arr.nbytes)
-        else:
-            vbo.write(0, arr, arr.nbytes)
-        vbo.release()
-
     @staticmethod
     def getShaderProgram():
         klass = GLScatterPlotItem
@@ -153,11 +142,11 @@ class GLScatterPlotItem(GLGraphicsItem):
         glfn = self.glFunctions()
 
         if DirtyFlag.POSITION in self.dirty_bits:
-            self.upload_vbo(self.m_vbo_position, self.pos)
+            upload_vbo(self.m_vbo_position, self.pos)
         if DirtyFlag.COLOR in self.dirty_bits:
-            self.upload_vbo(self.m_vbo_color, self.color)
+            upload_vbo(self.m_vbo_color, self.color)
         if DirtyFlag.SIZE in self.dirty_bits:
-            self.upload_vbo(self.m_vbo_size, self.size)
+            upload_vbo(self.m_vbo_size, self.size)
         self.dirty_bits = DirtyFlag(0)
 
         if not context.isOpenGLES():
@@ -247,7 +236,7 @@ def _is_compatibility_profile(context):
 ##
 
 SHADER_LEGACY = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform vec2 u_scale;
 
         uniform mat4 u_modelview;
@@ -274,8 +263,8 @@ SHADER_LEGACY = {
                 gl_PointSize /= pxSize;
             }
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -287,11 +276,11 @@ SHADER_LEGACY = {
             if (dot(xy, xy) <= 1.0) gl_FragColor = v_color;
             else discard;
         }
-    """
+    """)
 }
 
 SHADER_CORE = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform vec2 u_scale;
 
         uniform mat4 u_modelview;
@@ -318,8 +307,8 @@ SHADER_CORE = {
                 gl_PointSize /= pxSize;
             }
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -332,5 +321,5 @@ SHADER_CORE = {
             if (dot(xy, xy) <= 1.0) fragColor = v_color;
             else discard;
         }
-    """
+    """)
 }

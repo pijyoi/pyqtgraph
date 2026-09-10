@@ -1,3 +1,6 @@
+import enum
+import textwrap
+
 import numpy as np
 
 from ...Qt import QtGui, QtOpenGL
@@ -6,6 +9,12 @@ from ...Qt import OpenGLHelpers
 from ..GLGraphicsItem import GLGraphicsItem
 
 __all__ = ['GLImageItem']
+
+
+class DirtyFlag(enum.Flag):
+    POSITION = enum.auto()
+    TEXTURE = enum.auto()
+
 
 class GLImageItem(GLGraphicsItem):
     """
@@ -30,15 +39,16 @@ class GLImageItem(GLGraphicsItem):
         OpenGLHelpers.suppress_texture_warning()
         self.setGLOptions(glOptions)
         self.smooth = smooth
-        self._needUpdate = False
         self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
         self.m_vbo_position = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.VertexBuffer)
+        self.dirty_bits = DirtyFlag(0)
+        self.dirty_bits |= DirtyFlag.POSITION
         self.setParentItem(parentItem)
         self.setData(data)
 
     def setData(self, data):
         self.data = data
-        self._needUpdate = True
+        self.dirty_bits |= DirtyFlag.TEXTURE
         self.update()
 
     def _updateTexture(self):
@@ -71,20 +81,6 @@ class GLImageItem(GLGraphicsItem):
             QtOpenGL.QOpenGLTexture.PixelFormat.RGBA,
             QtOpenGL.QOpenGLTexture.PixelType.UInt8,
             data)
-
-        x, y = self.data.shape[:2]
-        pos = np.array([
-            [0, 0, 0, 0],
-            [x, 0, 1, 0],
-            [0, y, 0, 1],
-            [x, y, 1, 1],
-        ], dtype=np.float32)
-        vbo = self.m_vbo_position
-        if not vbo.isCreated():
-            vbo.create()
-        vbo.bind()
-        vbo.allocate(pos, pos.nbytes)
-        vbo.release()
 
     @staticmethod
     def getShaderProgram():
@@ -125,21 +121,31 @@ class GLImageItem(GLGraphicsItem):
         return program
 
     def paint(self):
-        if self._needUpdate:
-            self._updateTexture()
-            self._needUpdate = False
-        
         self.setupGLState()
 
         mat_mvp = self.mvpMatrix()
+        x, y = self.data.shape[:2]
+        mat_mvp.scale(x, y)
 
         glfn = self.glFunctions()
+
+        if DirtyFlag.POSITION in self.dirty_bits:
+            pos = np.array([
+                [0, 0, 0, 0],
+                [1, 0, 1, 0],
+                [0, 1, 0, 1],
+                [1, 1, 1, 1],
+            ], dtype=np.uint8) * 255
+            OpenGLHelpers.upload_vbo(self.m_vbo_position, pos)
+        if DirtyFlag.TEXTURE in self.dirty_bits:
+            self._updateTexture()
+        self.dirty_bits = DirtyFlag(0)
 
         program = self.getShaderProgram()
         loc_pos, loc_tex = 0, 1
         self.m_vbo_position.bind()
-        program.setAttributeBuffer(loc_pos, GLC.GL_FLOAT, 0*4, 2, 4*4)
-        program.setAttributeBuffer(loc_tex, GLC.GL_FLOAT, 2*4, 2, 4*4)
+        program.setAttributeBuffer(loc_pos, GLC.GL_UNSIGNED_BYTE, 0*1, 2, 4*1)
+        program.setAttributeBuffer(loc_tex, GLC.GL_UNSIGNED_BYTE, 2*1, 2, 4*1)
         self.m_vbo_position.release()
         enabled_locs = [loc_pos, loc_tex]
 
@@ -162,7 +168,7 @@ class GLImageItem(GLGraphicsItem):
 
 
 SHADER_LEGACY = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         attribute vec4 a_position;
         attribute vec2 a_texcoord;
@@ -171,8 +177,8 @@ SHADER_LEGACY = {
             gl_Position = u_mvp * a_position;
             v_texcoord = a_texcoord;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -182,11 +188,11 @@ SHADER_LEGACY = {
         {
             gl_FragColor = texture2D(u_texture, v_texcoord);
         }
-    """,
+    """),
 }
 
 SHADER_CORE = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         in vec4 a_position;
         in vec2 a_texcoord;
@@ -195,8 +201,8 @@ SHADER_CORE = {
             gl_Position = u_mvp * a_position;
             v_texcoord = a_texcoord;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -207,5 +213,5 @@ SHADER_CORE = {
         {
             fragColor = texture(u_texture, v_texcoord);
         }
-    """,
+    """),
 }

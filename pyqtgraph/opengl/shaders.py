@@ -1,3 +1,5 @@
+import textwrap
+
 import numpy as np
 
 from ..Qt import QtOpenGL
@@ -9,7 +11,7 @@ def initShaders():
     global Shaders
     Shaders = [
         ShaderProgram(None, [
-            VertexShader("""
+            VertexShader(textwrap.dedent("""
                 uniform mat4 u_mvp;
                 attribute vec4 a_position;
                 attribute vec4 a_color;
@@ -18,8 +20,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """),
-            FragmentShader("""
+            """)),
+            FragmentShader(textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -27,13 +29,13 @@ def initShaders():
                 void main() {
                     gl_FragColor = v_color;
                 }
-            """)
+            """))
         ]),
 
         ## increases fragment alpha as the normal turns orthogonal to the view
         ## this is useful for viewing shells that enclose a volume (such as isosurfaces)
         ShaderProgram('balloon', [
-            VertexShader("""
+            VertexShader(textwrap.dedent("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -46,8 +48,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """),
-            FragmentShader("""
+            """)),
+            FragmentShader(textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -58,13 +60,13 @@ def initShaders():
                     color.w = min(color.w + 2.0 * color.w * pow(v_normal.x*v_normal.x + v_normal.y*v_normal.y, 5.0), 1.0);
                     gl_FragColor = color;
                 }
-            """)
+            """))
         ]),
         
         ## colors fragments based on face normals relative to view
         ## This means that the colors will change depending on how the view is rotated
         ShaderProgram('viewNormalColor', [   
-            VertexShader("""
+            VertexShader(textwrap.dedent("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -77,8 +79,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """),
-            FragmentShader("""
+            """)),
+            FragmentShader(textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -88,12 +90,12 @@ def initShaders():
                     vec3 rgb = (v_normal + 1.0) * 0.5;
                     gl_FragColor = vec4(rgb, v_color.a);
                 }
-            """)
+            """))
         ]),
         
         ## colors fragments based on absolute face normals.
         ShaderProgram('normalColor', [   
-            VertexShader("""
+            VertexShader(textwrap.dedent("""
                 uniform mat4 u_mvp;
                 attribute vec4 a_position;
                 attribute vec3 a_normal;
@@ -105,8 +107,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """),
-            FragmentShader("""
+            """)),
+            FragmentShader(textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -116,13 +118,13 @@ def initShaders():
                     vec3 rgb = (v_normal + 1.0) * 0.5;
                     gl_FragColor = vec4(rgb, v_color.a);
                 }
-            """)
+            """))
         ]),
         
         ## very simple simulation of lighting. 
         ## The light source position is always relative to the camera.
         ShaderProgram('shaded', [   
-            VertexShader("""
+            VertexShader(textwrap.dedent("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -135,8 +137,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """),
-            FragmentShader("""
+            """)),
+            FragmentShader(textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -148,12 +150,12 @@ def initShaders():
                     vec3 rgb = v_color.rgb * (0.2 + p);
                     gl_FragColor = vec4(rgb, v_color.a);
                 }
-            """)
+            """))
         ]),
         
         ## colors get brighter near edges of object
         ShaderProgram('edgeHilight', [   
-            VertexShader("""
+            VertexShader(textwrap.dedent("""
                 uniform mat4 u_mvp;
                 uniform mat3 u_normal;
                 attribute vec4 a_position;
@@ -166,8 +168,8 @@ def initShaders():
                     v_color = a_color;
                     gl_Position = u_mvp * a_position;
                 }
-            """),
-            FragmentShader("""
+            """)),
+            FragmentShader(textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -178,7 +180,7 @@ def initShaders():
                     vec3 rgb = v_color.rgb + s * (1.0-v_color.rgb);
                     gl_FragColor = vec4(rgb, v_color.a);
                 }
-            """)
+            """))
         ]),
         
         ## colors fragments by z-value.
@@ -189,7 +191,7 @@ def initShaders():
         ##    blue  = pow(colorMap[6]*(z + colorMap[7]), colorMap[8])
         ## (set the values like this: shader['uniformMap'] = array([...])
         ShaderProgram('heightColor', [
-            VertexShader("""
+            VertexShader(textwrap.dedent("""
                 uniform mat4 u_mvp;
                 attribute vec4 a_position;
                 varying float zpos;
@@ -197,8 +199,8 @@ def initShaders():
                     zpos = a_position.z;
                     gl_Position = u_mvp * a_position;
                 }
-            """),
-            FragmentShader("""
+            """)),
+            FragmentShader(textwrap.dedent("""
                 #ifdef GL_ES
                 precision mediump float;
                 #endif
@@ -224,7 +226,7 @@ def initShaders():
                     
                     gl_FragColor = vec4(color, 1.0);
                 }
-            """),
+            """)),
         ], uniforms={'colorMap': [1, 1, 1, 1, 0.5, 1, 1, 0, 1]}),
 
     ]

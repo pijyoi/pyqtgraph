@@ -1,9 +1,11 @@
 import enum
+import textwrap
 
 import numpy as np
 
 from ...Qt import QtGui, QtOpenGL
 from ...Qt import OpenGLConstants as GLC
+from ...Qt.OpenGLHelpers import upload_vbo
 from ... import functions as fn
 from ..GLGraphicsItem import GLGraphicsItem
 
@@ -85,19 +87,6 @@ class GLLinePlotItem(GLGraphicsItem):
 
         self.update()
 
-    def upload_vbo(self, vbo, arr):
-        if arr is None:
-            vbo.destroy()
-            return
-        if not vbo.isCreated():
-            vbo.create()
-        vbo.bind()
-        if vbo.size() != arr.nbytes:
-            vbo.allocate(arr, arr.nbytes)
-        else:
-            vbo.write(0, arr, arr.nbytes)
-        vbo.release()
-
     @staticmethod
     def getShaderProgram():
         klass = GLLinePlotItem
@@ -149,9 +138,9 @@ class GLLinePlotItem(GLGraphicsItem):
         glfn = self.glFunctions()
 
         if DirtyFlag.POSITION in self.dirty_bits:
-            self.upload_vbo(self.m_vbo_position, self.pos)
+            upload_vbo(self.m_vbo_position, self.pos)
         if DirtyFlag.COLOR in self.dirty_bits:
-            self.upload_vbo(self.m_vbo_color, self.color)
+            upload_vbo(self.m_vbo_color, self.color)
         self.dirty_bits = DirtyFlag(0)
 
         program = self.getShaderProgram()
@@ -216,7 +205,7 @@ class GLLinePlotItem(GLGraphicsItem):
 
 
 SHADER_LEGACY = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         attribute vec4 a_position;
         attribute vec4 a_color;
@@ -225,8 +214,8 @@ SHADER_LEGACY = {
             v_color = a_color;
             gl_Position = u_mvp * a_position;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -234,11 +223,11 @@ SHADER_LEGACY = {
         void main() {
             gl_FragColor = v_color;
         }
-    """,
+    """),
 }
 
 SHADER_CORE = {
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : """
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Vertex : textwrap.dedent("""
         uniform mat4 u_mvp;
         in vec4 a_position;
         in vec4 a_color;
@@ -247,8 +236,8 @@ SHADER_CORE = {
             v_color = a_color;
             gl_Position = u_mvp * a_position;
         }
-    """,
-    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : """
+    """),
+    QtOpenGL.QOpenGLShader.ShaderTypeBit.Fragment : textwrap.dedent("""
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -257,5 +246,5 @@ SHADER_CORE = {
         void main() {
             fragColor = v_color;
         }
-    """,
+    """),
 }
