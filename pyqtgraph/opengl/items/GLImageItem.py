@@ -37,7 +37,7 @@ class GLImageItem(GLGraphicsItem):
         OpenGLHelpers.suppress_texture_warning()
         self.setGLOptions(glOptions)
         self.smooth = smooth
-        self.m_texture = None
+        self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
         self.m_vbo_position = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.VertexBuffer)
         self.dirty_bits = DirtyFlag(0)
         self.dirty_bits |= DirtyFlag.POSITION
@@ -45,10 +45,7 @@ class GLImageItem(GLGraphicsItem):
         self.setData(data)
 
     def cleanupGL(self):
-        if self.m_texture is not None:
-            self.m_texture.destroy()
-            # QOpenGLTexture has to be re-created on new context
-            self.m_texture = None
+        self.m_texture.destroy()
         self.m_vbo_position.destroy()
         self.dirty_bits = DirtyFlag.POSITION | DirtyFlag.TEXTURE
 
@@ -58,8 +55,6 @@ class GLImageItem(GLGraphicsItem):
         self.update()
 
     def _updateTexture(self):
-        if self.m_texture is None:
-            self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
         tex = self.m_texture
 
         data = np.ascontiguousarray(self.data.transpose((1,0,2)))

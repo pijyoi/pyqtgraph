@@ -135,7 +135,9 @@ class GLViewMixin:
             self._initializeItem(child)
 
     def cleanupGL(self):
+        self.makeCurrent()
         self.default_vao.destroy()
+        self.doneCurrent()
         self._shadersCache.clear()
         for child in self.items:
             self._cleanupItem(child)

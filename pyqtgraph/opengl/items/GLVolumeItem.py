@@ -39,17 +39,14 @@ class GLVolumeItem(GLGraphicsItem):
         self.sliceDensity = sliceDensity
         self.smooth = smooth
         self.data = None
-        self.m_texture = None
+        self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target3D)
         self.m_vbo_position = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.VertexBuffer)
         self.dirty_bits = DirtyFlag(0)
         self.setParentItem(parentItem)
         self.setData(data)
 
     def cleanupGL(self):
-        if self.m_texture is not None:
-            self.m_texture.destroy()
-            # QOpenGLTexture has to be re-created on new context
-            self.m_texture = None
+        self.m_texture.destroy()
         self.m_vbo_position.destroy()
         self.dirty_bits = DirtyFlag.POSITION | DirtyFlag.TEXTURE
 
@@ -63,8 +60,6 @@ class GLVolumeItem(GLGraphicsItem):
         self.update()
 
     def _uploadData(self):
-        if self.m_texture is None:
-            self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target3D)
         tex = self.m_texture
 
         data = np.ascontiguousarray(self.data.transpose((2,1,0,3)))
