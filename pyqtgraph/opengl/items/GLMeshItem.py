@@ -188,7 +188,6 @@ class GLMeshItem(GLGraphicsItem):
         self.colors = None
         self.edges = None
         self.edgeVerts = None
-        self.edgeColors = None
         self.update()
 
     def upload_vertex_buffers(self, dirty_bits):
