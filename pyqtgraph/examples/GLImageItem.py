@@ -58,3 +58,4 @@ w.addItem(ax)
 
 if __name__ == '__main__':
     pg.exec()
+    w.clear()
