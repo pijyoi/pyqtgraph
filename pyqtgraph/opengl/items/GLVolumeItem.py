@@ -34,7 +34,6 @@ class GLVolumeItem(GLGraphicsItem):
         """
         
         super().__init__()
-        OpenGLHelpers.suppress_texture_warning()
         self.setGLOptions(glOptions)
         self.sliceDensity = sliceDensity
         self.smooth = smooth
