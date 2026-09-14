@@ -34,7 +34,6 @@ class GLImageItem(GLGraphicsItem):
         """
         
         super().__init__()
-        OpenGLHelpers.suppress_texture_warning()
         self.setGLOptions(glOptions)
         self.smooth = smooth
         self.m_texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
