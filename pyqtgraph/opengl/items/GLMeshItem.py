@@ -348,7 +348,7 @@ class GLMeshItem(GLGraphicsItem):
                 if QT_LIB.startswith('PySide') and QtVersionInfo < (6, 9):
                     # PYSIDE-3005
                     if self._glUniform1fv is None:
-                        self._glUniform1fv = OpenGLHelpers.get_gl_uniform_1fv()
+                        self._glUniform1fv = OpenGLHelpers.get_gl_uniform_1fv(view.context())
                     self._glUniform1fv(loc, data.size, data.ctypes.data)
                 else:
                     # PySide6 and PyQt6 accept ndarray and list

@@ -104,8 +104,7 @@ GLUNIFORM1FV_TYPE = ctypes.CFUNCTYPE(
     ctypes.c_void_p
 )
 
-def get_gl_uniform_1fv():
-    context = QtGui.QOpenGLContext.currentContext()
+def get_gl_uniform_1fv(context):
     func_ptr = context.getProcAddress(b"glUniform1fv")
     return GLUNIFORM1FV_TYPE(int(func_ptr))
 
