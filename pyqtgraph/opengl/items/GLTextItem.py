@@ -74,7 +74,6 @@ class GLTextItem(GLGraphicsItem):
 
         if (view := self.view()) is None:
             return
-        context = view.context()
         self.setupGLState(view=view)
 
         device = view
