@@ -63,7 +63,6 @@ class GLGradientLegendItem(GLGraphicsItem):
     def paint(self):
         if (view := self.view()) is None:
             return
-        context = view.context()
         self.setupGLState(view=view)
 
         if self._gradient is None:
