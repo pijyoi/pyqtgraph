@@ -24,7 +24,6 @@ class GLPainterItem(GLGraphicsItem.GLGraphicsItem):
     def paint(self):
         if (view := self.view()) is None:
             return
-        context = view.context()
         self.setupGLState(view=view)
 
         painter = QtGui.QPainter(view)
