@@ -64,7 +64,7 @@ class GLGradientLegendItem(GLGraphicsItem):
         if (view := self.view()) is None:
             return
         context = view.context()
-        self.setupGLState(context=context)
+        self.setupGLState(view=view)
 
         if self._gradient is None:
             self._gradient = self.gradient.getGradient()
