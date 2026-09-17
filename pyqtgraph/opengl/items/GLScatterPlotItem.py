@@ -114,9 +114,9 @@ class GLScatterPlotItem(GLGraphicsItem):
         if (view := self.view()) is None:
             return
         context = view.context()
-        glfn = self.glFunctions(context)
+        glfn = self.glFunctions(view=view)
 
-        self.setupGLState(context=context)
+        self.setupGLState(view=view)
 
         mat_mvp = self.mvpMatrix(view=view)
         mat_modelview = self.modelViewMatrix(view=view)

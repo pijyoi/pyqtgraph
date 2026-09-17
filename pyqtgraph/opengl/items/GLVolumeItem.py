@@ -118,10 +118,9 @@ class GLVolumeItem(GLGraphicsItem):
 
         if (view := self.view()) is None:
             return
-        context = view.context()
-        glfn = self.glFunctions(context)
+        glfn = self.glFunctions(view=view)
 
-        self.setupGLState(context=context)
+        self.setupGLState(view=view)
 
         if DirtyFlag.POSITION in self.dirty_bits:
             vertices, self.lists = self.computeVertices()

@@ -38,8 +38,6 @@ class GLGraphicsItem(QtCore.QObject):
         self.__children: list[GLGraphicsItem] = list()
         self.__transform = Transform3D()
         self.__visible = True
-        self.__glctx: QtGui.QOpenGLContext | None = None
-        self.__glfns = None
         self.setParentItem(parentItem)
         self.setDepthValue(0)
         self.__glOpts = {}
@@ -251,12 +249,14 @@ class GLGraphicsItem(QtCore.QObject):
         """
         pass
     
-    def setupGLState(self, *, context=None):
+    def setupGLState(self, *, view=None):
         """
         This method is responsible for preparing the GL state options needed to render 
         this item (blending, depth testing, etc). The method is called immediately before painting the item.
         """
-        glfn = self.glFunctions(context)
+        if view is None:
+            view = self.view()
+        glfn = self.glFunctions(view=view)
 
         for k,v in self.__glOpts.items():
             if v is None:
@@ -327,14 +327,9 @@ class GLGraphicsItem(QtCore.QObject):
             return QtGui.QMatrix4x4()
         return view.currentProjection() * view.currentModelView()
 
-    def glFunctions(self, context) -> QtOpenGL.QAbstractOpenGLFunctions:
-        if context is None:
-            context = QtGui.QOpenGLContext.currentContext()
-
-        if self.__glfns is None or self.__glctx is not context:
-            self.__glctx = context
-            self.__glfns = OpenGLHelpers.getFunctions(context)
-        return self.__glfns
+    def glFunctions(self, *, view) -> QtOpenGL.QAbstractOpenGLFunctions:
+        # for new functions, "view" is mandatory
+        return view.glfn
 
     def shadersCache(self, *, view) -> dict:
         # for new functions, "view" is mandatory

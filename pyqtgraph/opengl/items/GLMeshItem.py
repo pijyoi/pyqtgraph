@@ -274,10 +274,9 @@ class GLMeshItem(GLGraphicsItem):
 
         if (view := self.view()) is None:
             return
-        context = view.context()
-        glfn = self.glFunctions(context)
+        glfn = self.glFunctions(view=view)
 
-        self.setupGLState(context=context)
+        self.setupGLState(view=view)
 
         NULL = compat.voidptr(0) if QT_LIB.startswith('PySide') else None
 
