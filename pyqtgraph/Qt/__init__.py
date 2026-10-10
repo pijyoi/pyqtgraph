@@ -65,7 +65,7 @@ class FailedImport(object):
 
 def _loadUiType(uiFile):
     QtUiTools = importlib.import_module(QT_LIB + '.QtUiTools')
-    return QtUiTools.loadUiType(uiFile)
+    return QtUiTools.loadUiType(uiFile, True)
 
 
 # For historical reasons, pyqtgraph maintains a Qt4-ish interface back when
