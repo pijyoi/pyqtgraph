@@ -50,9 +50,11 @@ class OpenGLState(QtCore.QObject):
         super().__init__(parent)
         self.context = None
         self.vbo_nbytes = 0
+        self.ibo_nbytes = 0
         self.render_cache = None
         self.m_vao = QtOpenGL.QOpenGLVertexArrayObject(self)
         self.m_vbo = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.VertexBuffer)
+        self.m_ibo = QtOpenGL.QOpenGLBuffer(QtOpenGL.QOpenGLBuffer.Type.IndexBuffer)
 
     def setup(self, context):
         if self.context is context:
@@ -91,25 +93,31 @@ class OpenGLState(QtCore.QObject):
 
         self.m_vao.create()
         self.m_vbo.create()
+        self.m_ibo.create()
         self.vbo_nbytes = 0
+        self.ibo_nbytes = 0
 
         self.m_vao.bind()
+        self.m_ibo.bind()
         self.m_vbo.bind()
         program.enableAttributeArray(0)
         program.setAttributeBuffer(0, GLC.GL_FLOAT, 0, 2)
         self.m_vbo.release()
         self.m_vao.release()
+        self.m_ibo.release()
 
     def cleanup(self):
         # this method should restore the state back to __init__
         glwidget = self.parent()
         glwidget.makeCurrent()
 
+        self.m_ibo.destroy()
         self.m_vbo.destroy()
         self.m_vao.destroy()
 
         self.context = None
         self.vbo_nbytes = 0
+        self.ibo_nbytes = 0
         self.render_cache = None
 
         glwidget.doneCurrent()
@@ -948,11 +956,18 @@ class PlotCurveItem(GraphicsObject):
         mvp = proj * QtGui.QMatrix4x4(tr)
 
         vbo_nbytes_needed = num_pts * 2 * 4
+        ibo_nbytes_needed = 0
 
         connect_kind = self.opts["connect"]
         if isinstance(connect_kind, np.ndarray):
             connect_kind = "array"
             vbo_nbytes_needed = ((num_pts-1) * 2) * 2 * 4
+
+        if connect_kind == 'finite':
+            # decide whether we can use GL_PRIMITIVE_RESTART
+            ctx = glstate.context
+            if ctx.format().version() >= ((3, 0) if ctx.isOpenGLES() else (3, 1)):
+                ibo_nbytes_needed = num_pts * 4
 
         # filling is only supported for 'all' and 'finite'.
         # it requires an additional 2 * num_pts of storage
@@ -972,14 +987,21 @@ class PlotCurveItem(GraphicsObject):
             glstate.m_vbo.release()
             glstate.vbo_nbytes = vbo_nbytes_needed
 
+        if ibo_nbytes_needed != glstate.ibo_nbytes:
+            glstate.m_ibo.bind()
+            glstate.m_ibo.allocate(ibo_nbytes_needed)
+            glstate.m_ibo.release()
+            glstate.ibo_nbytes = ibo_nbytes_needed
+
         if glstate.render_cache is None:
-            buf = None
+            buf_vtx = None
+            buf_ind = None
 
             if connect_kind == "pairs":
                 glstate.render_cache = (xc, yc, valid_pts,)
 
-                buf = np.empty((valid_pts, 2), dtype=np.float32)
-                pos = buf
+                buf_vtx = np.empty((valid_pts, 2), dtype=np.float32)
+                pos = buf_vtx
                 pos[:, 0] = x - xc
                 pos[:, 1] = y - yc
 
@@ -990,8 +1012,8 @@ class PlotCurveItem(GraphicsObject):
                 glstate.render_cache = (xc, yc, valid_pts,)
 
                 fill_pts = 0 if fillLevel is None else 2 * valid_pts
-                buf = np.empty((valid_pts + fill_pts, 2), dtype=np.float32)
-                pos = buf[:valid_pts, :]
+                buf_vtx = np.empty((valid_pts + fill_pts, 2), dtype=np.float32)
+                pos = buf_vtx[:valid_pts, :]
                 if valid_pts == num_pts:
                     pos[:, 0] = x - xc
                     pos[:, 1] = y - yc
@@ -1000,7 +1022,7 @@ class PlotCurveItem(GraphicsObject):
                     pos[:, 1] = y[finite_mask] - yc
 
                 if fill_pts:
-                    fillpos = buf[valid_pts:, :]
+                    fillpos = buf_vtx[valid_pts:, :]
                     fillpos[0::2, 0] = pos[:, 0]
                     fillpos[0::2, 1] = pos[:, 1]
                     fillpos[1::2, 0] = pos[:, 0]
@@ -1012,25 +1034,29 @@ class PlotCurveItem(GraphicsObject):
                 glstate.render_cache = (xc, yc, valid_pts, sidx.tolist(), slen.tolist())
 
                 fill_pts = 0 if fillLevel is None else 2 * valid_pts
-                buf = np.empty((valid_pts + fill_pts, 2), dtype=np.float32)
-                pos = buf[:valid_pts, :]
+                buf_vtx = np.empty((valid_pts + fill_pts, 2), dtype=np.float32)
+                pos = buf_vtx[:valid_pts, :]
                 pos[:, 0] = x - xc
                 pos[:, 1] = y - yc
 
                 if fill_pts:
-                    fillpos = buf[valid_pts:, :]
+                    fillpos = buf_vtx[valid_pts:, :]
                     fillpos[0::2, 0] = pos[:, 0]
                     fillpos[0::2, 1] = pos[:, 1]
                     fillpos[1::2, 0] = pos[:, 0]
                     fillpos[1::2, 1] = fillLevel - yc
+
+                if ibo_nbytes_needed != 0:
+                    buf_ind = np.arange(valid_pts, dtype=np.uint32)
+                    buf_ind[~finite_mask] = 0xFFFFFFFF
 
             elif connect_kind == "array":
                 mask = np.asarray(self.opts["connect"], dtype=bool)[:num_pts-1]
                 valid_pts = 2 * np.count_nonzero(mask)
                 glstate.render_cache = (xc, yc, valid_pts,)
 
-                buf = np.empty((valid_pts, 2), dtype=np.float32)
-                pos = buf
+                buf_vtx = np.empty((valid_pts, 2), dtype=np.float32)
+                pos = buf_vtx
                 xshift = x - xc
                 yshift = y - yc
                 pos[0::2, 0] = xshift[:-1][mask]
@@ -1038,11 +1064,17 @@ class PlotCurveItem(GraphicsObject):
                 pos[0::2, 1] = yshift[:-1][mask]
                 pos[1::2, 1] = yshift[1:][mask]
 
-            if buf is not None:
+            if buf_vtx is not None:
                 glstate.m_vbo.bind()
-                glstate.m_vbo.write(0, buf, buf.nbytes)
+                glstate.m_vbo.write(0, buf_vtx, buf_vtx.nbytes)
                 glstate.m_vbo.release()
+                del buf_vtx
 
+            if buf_ind is not None:
+                glstate.m_ibo.bind()
+                glstate.m_ibo.write(0, buf_ind, buf_ind.nbytes)
+                glstate.m_ibo.release()
+                del buf_ind
 
         widget.setViewboxClip(view)
 
@@ -1103,13 +1135,24 @@ class PlotCurveItem(GraphicsObject):
                     *_, valid_pts = glstate.render_cache
                     glf.glDrawArrays(GLC.GL_LINE_STRIP, 0, valid_pts)
                 case "finite":
-                    *_, sidx, slen = glstate.render_cache
-                    if hasattr(glf, "glMultiDrawArrays") and not glstate.context.isOpenGLES():
-                        glf.glMultiDrawArrays(GLC.GL_LINE_STRIP, sidx, slen, len(sidx))
+                    *_, valid_pts, sidx, slen = glstate.render_cache
+                    is_opengles = glstate.context.isOpenGLES()
+                    if ibo_nbytes_needed != 0:
+                        if is_opengles or glstate.context.format().version() >= (4, 3):
+                            primitive_restart = GLC.GL_PRIMITIVE_RESTART_FIXED_INDEX
+                        else:
+                            primitive_restart = GLC.GL_PRIMITIVE_RESTART
+                            glf.glPrimitiveRestartIndex(0xFFFFFFFF)
+                        glf.glEnable(primitive_restart)
+                        glf.glDrawElements(GLC.GL_LINE_STRIP, valid_pts, GLC.GL_UNSIGNED_INT, OpenGLHelpers.NULL)
+                        glf.glDisable(primitive_restart)
                     else:
-                        # PyQt{5,6} didn't include glMultiDrawArrays
-                        for s, l in zip(sidx, slen):
-                            glf.glDrawArrays(GLC.GL_LINE_STRIP, s, l)
+                        if hasattr(glf, "glMultiDrawArrays") and not is_opengles:
+                            glf.glMultiDrawArrays(GLC.GL_LINE_STRIP, sidx, slen, len(sidx))
+                        else:
+                            # PyQt{5,6} didn't include glMultiDrawArrays
+                            for s, l in zip(sidx, slen):
+                                glf.glDrawArrays(GLC.GL_LINE_STRIP, s, l)
 
         glstate.m_vao.release()
 
